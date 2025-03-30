@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: BSD-3-Clause
+
+#include <skeleton64.dtsi>
+#include <lk2nd.dtsi>
+
+/ {
+	      qcom,msm-id = <164 10001>;
+};
+
+nokia-rock {
+    		model = "Nokia Lumia 530";
+		    compatible = "nokia,rock", "qcom,msm8610", "lk2nd,device";
+
+	    	lk2nd,smd-rpm-hack-opening;
+		    lk2nd,relocate-fb = <0x0FF00000>;
+	};
+	
+	nokia-vela {
+		    model = "Microsoft Lumia 435";
+    		compatible = "nokia,vela", "qcom,msm8610", "lk2nd,device";
+
+		    lk2nd,smd-rpm-hack-opening;
+		    lk2nd,relocate-fb = <0x0FF00000>;
+	};
