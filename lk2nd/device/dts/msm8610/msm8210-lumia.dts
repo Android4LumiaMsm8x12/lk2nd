@@ -4,10 +4,13 @@
 #include <lk2nd.dtsi>
 
 / {
-	      qcom,msm-id = <164 10001>;
-};
+	// This is used by the bootloader to find the correct DTB
+	qcom,msm-id = <164 10001>;
 
-nokia-rock {
+	/* All the Nokia devices are expected to use lk1st, which passes the 
+	compatible to lk2nd, so no need for extra device matching. 
+	These nodes are listed in no particular order. */
+	nokia-rock {
     		model = "Nokia Lumia 530";
 		    compatible = "nokia,rock", "qcom,msm8610", "lk2nd,device";
 
@@ -22,3 +25,4 @@ nokia-rock {
 		    lk2nd,smd-rpm-hack-opening;
 		    lk2nd,relocate-fb = <0x0FF00000>;
 	};
+};
