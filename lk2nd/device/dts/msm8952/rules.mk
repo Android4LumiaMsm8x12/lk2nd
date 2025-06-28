@@ -3,7 +3,7 @@ LOCAL_DIR := $(GET_LOCAL_DIR)
 
 ADTBS += \
 	$(LOCAL_DIR)/msm8917-mtp.dtb \
-	$(LOCAL_DIR)/msm8917-xiaomi-rolex.dtb \
+	$(LOCAL_DIR)/msm8917-xiaomi-common.dtb \
 	$(LOCAL_DIR)/msm8917-xiaomi-riva.dtb \
 	$(LOCAL_DIR)/msm8920-motorola-jeter.dtb \
 	$(LOCAL_DIR)/msm8920-mtp.dtb \
@@ -16,11 +16,13 @@ ADTBS += \
 	$(LOCAL_DIR)/msm8940-mtp.dtb \
 	$(LOCAL_DIR)/msm8940-oppo-a57.dtb \
 	$(LOCAL_DIR)/msm8940-xiaomi-santoni.dtb \
+	$(LOCAL_DIR)/msm8952-mtp.dtb \
 	$(LOCAL_DIR)/msm8956-mtp.dtb \
 	$(LOCAL_DIR)/msm8956-xiaomi-hydrogen.dtb \
 	$(LOCAL_DIR)/msm8976-qrd.dtb \
+	$(LOCAL_DIR)/sdm429-lenovo-tbx505x.dtb \
+	$(LOCAL_DIR)/sdm429w-fossil-hoki.dtb \
 	$(LOCAL_DIR)/sdm439-xiaomi-pine.dtb \
 
 DTBS += \
 	$(LOCAL_DIR)/msm8917-huawei-agassi.dtb \
-

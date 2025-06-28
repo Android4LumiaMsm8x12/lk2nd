@@ -8,6 +8,7 @@
 #include <platform.h>
 #include <platform/iomap.h>
 #include <smem.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <target.h>
 
@@ -19,6 +20,7 @@
 #include "boot.h"
 
 struct label {
+	const char *name;
 	const char *kernel;
 	const char *initramfs;
 	const char *dtb;
@@ -28,6 +30,8 @@ struct label {
 };
 
 enum token {
+	CMD_LABEL,
+	CMD_DEFAULT,
 	CMD_KERNEL,
 	CMD_APPEND,
 	CMD_INITRD,
@@ -41,6 +45,8 @@ static const struct {
 	char *command;
 	enum token token;
 } token_map[] = {
+	{"label",		CMD_LABEL},
+	{"default",		CMD_DEFAULT},
 	{"kernel",		CMD_KERNEL},
 	{"linux",		CMD_KERNEL},
 	{"fdtdir",		CMD_FDTDIR},
@@ -58,7 +64,7 @@ static enum token cmd_to_tok(char *command)
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(token_map); i++)
-		if (!strcmp(command, token_map[i].command))
+		if (!strcasecmp(command, token_map[i].command))
 			return token_map[i].token;
 
 	return CMD_UNKNOWN;
@@ -169,6 +175,25 @@ static int parse_command(char **data, size_t *size, char **command, char **value
 }
 
 /**
+ * count_lines() - Count the amount of lines in the string.
+ */
+static int count_lines(char *data, size_t size)
+{
+	int acc = 0;
+	size_t i;
+
+	for (i = 0; i < size; ++i) {
+		if (data[i] == '\n')
+			acc++;
+
+		if (data[i] == '\0')
+			break;
+	}
+
+	return acc;
+}
+
+/**
  * parse_conf() - Extract default label from extlinux.conf
  * @data: File contents
  * @size: Length of the file
@@ -188,43 +213,108 @@ static int parse_conf(char *data, size_t size, struct label *label)
 	char *command = NULL, *value = NULL;
 	char *overlay, *saveptr;
 	int cnt = 0;
+	struct {
+		enum token cmd;
+		char *val;
+	} *commands;
+	int commands_count;
+	struct label *labels;
+	struct label *default_label = NULL;
+	const char *default_name = "";
+	int labels_count = 0;
+	int label_idx;
+	int i;
 
+	commands_count = count_lines(data, size);
+	commands = calloc(commands_count, sizeof(*commands));
+
+	i = 0;
 	while (parse_command(&data, &size, &command, &value) == 0) {
-		switch (cmd_to_tok(command)) {
+		if (i >= commands_count) {
+			dprintf(INFO, "Failed to parse the extlinux.conf\n");
+			free(commands);
+			return -1;
+		}
+
+		commands[i].cmd = cmd_to_tok(command);
+		commands[i].val = value;
+		i++;
+	}
+
+	commands_count = i;
+
+	i = 0;
+	for (i = 0; i < commands_count; ++i) {
+		if (commands[i].cmd == CMD_LABEL)
+			labels_count++;
+	}
+
+	if (labels_count == 0) {
+		dprintf(INFO, "No labels in the extlinux.conf\n");
+		free(commands);
+		return -1;
+	}
+
+	labels = calloc(labels_count, sizeof(*labels));
+
+	label_idx = -1;
+	for (i = 0; i < commands_count; ++i) {
+		if (commands[i].cmd == CMD_DEFAULT) {
+			default_name = commands[i].val;
+		} else if (commands[i].cmd == CMD_LABEL) {
+			label_idx++;
+			labels[label_idx].name = commands[i].val;
+		} else if (label_idx >= 0 && label_idx < labels_count) {
+			switch (commands[i].cmd) {
 			case CMD_KERNEL:
-				label->kernel = value;
+				labels[label_idx].kernel = commands[i].val;
 				break;
 			case CMD_INITRD:
-				label->initramfs = value;
+				labels[label_idx].initramfs = commands[i].val;
 				break;
 			case CMD_APPEND:
-				label->cmdline = value;
+				labels[label_idx].cmdline = commands[i].val;
 				break;
 			case CMD_FDT:
-				label->dtb = value;
+				labels[label_idx].dtb = commands[i].val;
 				break;
 			case CMD_FDTDIR:
-				label->dtbdir = value;
+				labels[label_idx].dtbdir = commands[i].val;
 				break;
 			case CMD_FDTOVERLAY:
-				for (char *c = value; *c; c++)
+				for (char *c = commands[i].val; *c; c++)
 					if (*c == ' ')
 						cnt++;
 
 				cnt += 2;
 
-				label->dtboverlays = calloc(cnt, sizeof(*label->dtboverlays));
+				labels[label_idx].dtboverlays = calloc(cnt, sizeof(*labels[label_idx].dtboverlays));
 				cnt = 0;
-				for (overlay = strtok_r(value, " ", &saveptr); overlay;
+				for (overlay = strtok_r(commands[i].val, " ", &saveptr); overlay;
 				     overlay = strtok_r(NULL,  " ", &saveptr)) {
-					label->dtboverlays[cnt] = overlay;
+					labels[label_idx].dtboverlays[cnt] = overlay;
 					cnt++;
 				}
 				break;
 			default:
 				break;
+			}
 		}
 	}
+
+	default_label = &labels[0];
+
+	for (i = 0; i < labels_count; ++i) {
+		if (!strcmp(default_name, labels[i].name)) {
+			default_label = &labels[i];
+			break;
+		}
+	}
+
+	memcpy(label, default_label, sizeof(*label));
+
+	free(labels);
+	free(commands);
 
 	return 0;
 }
@@ -246,6 +336,28 @@ static bool fs_file_exists(const char *file)
 }
 
 /**
+ * normalize_path() - Normalize path against given root.
+ *
+ * Given some path (absolute or relative), normalize it to
+ * the lk "vfs" path; prepending /extlinux/ if the path is
+ * relative.
+ *
+ * Returns: Newly allocated copy of the string with normalized
+ * path.
+ */
+static char *normalize_path(const char *path, const char *root)
+{
+	char tmp[256];
+
+	if (path[0] == '/')
+		snprintf(tmp, sizeof(tmp), "%s/%s", root, path);
+	else
+		snprintf(tmp, sizeof(tmp), "%s/extlinux/%s", root, path);
+
+	return strndup(tmp, sizeof(tmp));
+}
+
+/**
  * expand_conf() - Sanity check and rewrite the parsed config.
  *
  * This function checks if all the values in the config are sane,
@@ -258,7 +370,6 @@ static bool fs_file_exists(const char *file)
 static bool expand_conf(struct label *label, const char *root)
 {
 	const char *const *dtbfiles = lk2nd_device_get_dtb_hints();
-	char path[128];
 	int i = 0;
 
 	/* Cant boot without any kernel. */
@@ -267,8 +378,7 @@ static bool expand_conf(struct label *label, const char *root)
 		return false;
 	}
 
-	snprintf(path, sizeof(path), "%s/%s", root, label->kernel);
-	label->kernel = strndup(path, sizeof(path));
+	label->kernel = normalize_path(label->kernel, root);
 
 	if (!fs_file_exists(label->kernel)) {
 		dprintf(INFO, "Kernel %s does not exist\n", label->kernel);
@@ -288,24 +398,40 @@ static bool expand_conf(struct label *label, const char *root)
 		}
 
 		while (dtbfiles[i]) {
-			/* NOTE: Try aarch64 path, then aarch32 one. */
-			snprintf(path, sizeof(path), "%s/%s/qcom/%s.dtb", root, label->dtbdir, dtbfiles[i]);
-			if (!fs_file_exists(path))
-				snprintf(path, sizeof(path), "%s/%s/qcom-%s.dtb", root, label->dtbdir, dtbfiles[i]);
+			char dtb[128];
+			char *normalized = NULL;
 
-			/* boot-deploy drops the vendor dir when copying dtbs. */
-			if (!fs_file_exists(path))
-				snprintf(path, sizeof(path), "%s/%s/%s.dtb", root, label->dtbdir, dtbfiles[i]);
-
-			if (fs_file_exists(path)) {
-				label->dtb = strndup(path, sizeof(path));
+			/* Try arm64 style path. */
+			snprintf(dtb, sizeof(dtb), "%s/qcom/%s.dtb", label->dtbdir, dtbfiles[i]);
+			normalized = normalize_path(dtb, root);
+			if (fs_file_exists(normalized)) {
+				label->dtb = normalized;
 				break;
 			}
+			free(normalized);
+
+			/* Try arm32 style path. */
+			snprintf(dtb, sizeof(dtb), "%s/qcom-%s.dtb", label->dtbdir, dtbfiles[i]);
+			normalized = normalize_path(dtb, root);
+			if (fs_file_exists(normalized)) {
+				label->dtb = normalized;
+				break;
+			}
+			free(normalized);
+
+			/* boot-deploy drops the vendor dir when copying dtbs. */
+			snprintf(dtb, sizeof(dtb), "%s/%s.dtb", label->dtbdir, dtbfiles[i]);
+			normalized = normalize_path(dtb, root);
+			if (fs_file_exists(normalized)) {
+				label->dtb = normalized;
+				break;
+			}
+			free(normalized);
+
 			i++;
 		}
 	} else {
-		snprintf(path, sizeof(path), "%s/%s", root, label->dtb);
-		label->dtb = strndup(path, sizeof(path));
+		label->dtb = normalize_path(label->dtb, root);
 	}
 
 	if (!fs_file_exists(label->dtb)) {
@@ -316,20 +442,18 @@ static bool expand_conf(struct label *label, const char *root)
 	if (label->dtboverlays) {
 		i = 0;
 		while (label->dtboverlays[i]) {
-			snprintf(path, sizeof(path), "%s/%s", root, label->dtboverlays[i]);
-			if (fs_file_exists(path)) {
-				label->dtboverlays[i] = strndup(path, sizeof(path));
-			} else {
+			label->dtboverlays[i] = normalize_path(label->dtboverlays[i], root);
+			if (!fs_file_exists(label->dtboverlays[i])) {
 				dprintf(INFO, "FDT overlay %s does not exist\n", label->dtboverlays[i]);
 				return false;
 			}
+
 			i++;
 		}
 	}
 
 	if (label->initramfs) {
-		snprintf(path, sizeof(path), "%s/%s", root, label->initramfs);
-		label->initramfs = strndup(path, sizeof(path));
+		label->initramfs = normalize_path(label->initramfs, root);
 
 		if (!fs_file_exists(label->initramfs)) {
 			dprintf(INFO, "Initramfs %s does not exist\n", label->initramfs);
@@ -417,6 +541,8 @@ static void lk2nd_boot_label(struct label *label)
 	struct load_addrs addrs;
 	void *kernel_scratch;
 	int ret, i = 0;
+
+	dprintf(INFO, "Trying to boot '%s'\n", label->name);
 
 	ret = fs_load_file(label->kernel, scratch, scratch_size);
 	if (ret < 0) {

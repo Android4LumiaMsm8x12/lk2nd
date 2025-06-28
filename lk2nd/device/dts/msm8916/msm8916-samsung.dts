@@ -62,10 +62,10 @@
 	coreprimelte {
 		// In the downstream dts it is called Samsung ROSSA PROJECT Rev00
 		model = "Samsung Galaxy Core Prime LTE (SM-G360F)";
-		compatible = "samsung,coreprimelte", "samsung,cprime";
+		compatible = "samsung,coreprimelte", "samsung,rossa";
 		lk2nd,match-bootloader = "G360F*";
 
-		lk2nd,dtb-files = "msm8916-samsung-cprime";
+		lk2nd,dtb-files = "msm8916-samsung-rossa";
 
 		qcom,msm-id = <QCOM_ID_MSM8916 0>;
 		qcom,board-id = <0xCE08FF01 1>;
@@ -197,10 +197,10 @@
 
 	rossaltedv {
 		model = "Samsung Galaxy Core Prime LTE (SM-G360GD)";
-		compatible = "samsung,rossaltexsa", "samsung,cprime";
+		compatible = "samsung,rossaltexsa", "samsung,rossa";
 		lk2nd,match-bootloader = "G360GD*";
 
-		lk2nd,dtb-files = "msm8916-samsung-cprime";
+		lk2nd,dtb-files = "msm8916-samsung-rossa";
 
 		qcom,msm-id = <QCOM_ID_MSM8916 0>;
 		qcom,board-id = <0xCE08FF01 1>;
@@ -461,10 +461,10 @@
 	 */
 	rossaltezt {
 		model = "Samsung Galaxy Core Prime LTE (SM-G360GZT)";
-		compatible = "samsung,rossaltexsa", "samsung,cprime";
+		compatible = "samsung,rossaltexsa", "samsung,rossa";
 		lk2nd,match-bootloader = "G360GZT*";
 
-		lk2nd,dtb-files = "msm8916-samsung-cprime";
+		lk2nd,dtb-files = "msm8916-samsung-rossa";
 
 		qcom,msm-id = <QCOM_ID_MSM8916 0>;
 		qcom,board-id = <0xCE08FF01 3>;
@@ -512,6 +512,24 @@
 		model = "Samsung Galaxy J5 2016 (SM-J510F)";
 		compatible = "samsung,j5xnlte", "samsung,j5x";
 		lk2nd,match-bootloader = "J510F*";
+
+		lk2nd,dtb-files = "msm8916-samsung-j5x";
+
+		qcom,msm-id = <QCOM_ID_MSM8916 0>;
+		qcom,board-id = <0xCE08FF01 4>;
+
+		muic-reset {
+			compatible = "samsung,muic-reset";
+			i2c-reg = <0x25>;
+			i2c-sda-gpios = <&tlmm 105 I2C_GPIO_FLAGS>;
+			i2c-scl-gpios = <&tlmm 106 I2C_GPIO_FLAGS>;
+		};
+	};
+
+	j5xnltelgt {
+		model = "Samsung Galaxy J5 2016 (SM-J510L)";
+		compatible = "samsung,j5xnlte", "samsung,j5x";
+		lk2nd,match-bootloader = "J510L*";
 
 		lk2nd,dtb-files = "msm8916-samsung-j5x";
 
@@ -687,10 +705,10 @@
 
 	cprimeltetmo {
 		model = "Samsung Galaxy Core Prime LTE (SM-G360T)";
-		compatible = "samsung,cprimeltetmo", "samsung,cprime";
+		compatible = "samsung,cprimeltetmo", "samsung,rossa";
 		lk2nd,match-bootloader = "G360T*";
 
-		lk2nd,dtb-files = "msm8916-samsung-cprime";
+		lk2nd,dtb-files = "msm8916-samsung-rossa";
 
 		qcom,msm-id = <QCOM_ID_MSM8916 0>;
 		qcom,board-id = <0xCE08FF01 6>;
@@ -714,10 +732,10 @@
 		};
 	};
 
-	e7000 {
-		model = "Samsung Galaxy E7 (SM-E7000)";
-		compatible = "samsung,e7000", "samsung,e7";
-		lk2nd,match-bootloader = "E7000*";
+	e7ltexx {
+		model = "Samsung Galaxy E7 (SM-E700F)";
+		compatible = "samsung,e7ltexx", "samsung,e7";
+		lk2nd,match-bootloader = "E700F*";
 
 		lk2nd,dtb-files = "msm8916-samsung-e7";
 
@@ -736,10 +754,32 @@
 		};
 	};
 
-	e7ltexx {
-		model = "Samsung Galaxy E7 (SM-E700F)";
-		compatible = "samsung,e7ltexx", "samsung,e7";
-		lk2nd,match-bootloader = "E700F*";
+	e7ltezc {
+		model = "Samsung Galaxy E7 (SM-E7000)";
+		compatible = "samsung,e7ltechn", "samsung,e7";
+		lk2nd,match-bootloader = "E7000ZC*";
+
+		lk2nd,dtb-files = "msm8916-samsung-e7";
+
+		qcom,msm-id = <QCOM_ID_MSM8916 0>;
+		qcom,board-id = <0xCE08FF01 6>;
+
+		panel {
+			compatible = "samsung,e7-panel", "lk2nd,panel";
+
+			ss_dsi_panel_EA8061_HD {
+				compatible = "samsung,ea8061-ams549bu19";
+			};
+			ss_dsi_panel_EA8061_ID400418_HD {
+				compatible = "samsung,ea8061-ams549bu19-id400418";
+			};
+		};
+	};
+
+	e7ltezs {
+		model = "Samsung Galaxy E7 (SM-E7000)";
+		compatible = "samsung,e7ltehktw", "samsung,e7";
+		lk2nd,match-bootloader = "E7000ZS*";
 
 		lk2nd,dtb-files = "msm8916-samsung-e7";
 
@@ -808,7 +848,6 @@
 			};
 		};
 	};
-
 
 	/*
 	 * To build for g5108q, add LK2ND_QCDTBS="msm8916-samsung.dtb"

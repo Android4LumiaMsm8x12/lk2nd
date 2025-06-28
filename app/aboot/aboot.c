@@ -1611,7 +1611,7 @@ int boot_linux_from_mmc(void)
 	void *vbmeta_image_buf = NULL;
 	uint32_t vbmeta_image_sz = 0;
 #endif
-	char *ptn_name = NULL;
+	char *ptn_name = "boot";
 #if DEVICE_TREE
 	void * image_buf = NULL;
 	unsigned int dtb_size = 0;
@@ -1647,14 +1647,11 @@ int boot_linux_from_mmc(void)
 		goto unified_boot;
 	}
 
-	/* For a/b recovery image code is on boot partition.
-	   If we support multislot, always use boot partition. */
-	if (boot_into_recovery &&
-		((!partition_multislot_is_supported()) ||
-		(target_dynamic_partition_supported())))
+	if (boot_into_recovery) {
+		if (partition_get_index("recovery") != INVALID_PTN) {
 			ptn_name = "recovery";
-	else
-			ptn_name = "boot";
+		}
+	}
 
 	index = partition_get_index(ptn_name);
 	ptn = partition_get_offset(index);
@@ -3480,7 +3477,7 @@ void cmd_boot(const char *arg, void *data, unsigned sz)
 	/* fastboot already stop, it's no need to show fastboot menu */
 	return;
 boot_failed:
-#if FBCON_DISPLAY_MSG || WITH_LK2ND_DEVICE_MENU
+#if FBCON_DISPLAY_MSG
 	/* revert to fastboot menu if boot failed */
 	display_fastboot_menu();
 #endif
@@ -4754,7 +4751,7 @@ void cmd_reboot_fastboot(const char *arg, void *data, unsigned sz)
 		return;
 	}
 	fastboot_okay("");
-	reboot_device(REBOOT_MODE_UNKNOWN);
+	reboot_device(RECOVERY_MODE);
 
 	//shouldn't come here.
 	dprintf(CRITICAL, "ERROR: Failed to reboot device\n");
@@ -4770,7 +4767,7 @@ void cmd_reboot_recovery(const char *arg, void *data, unsigned sz)
 		return;
 	}
 	fastboot_okay("");
-	reboot_device(REBOOT_MODE_UNKNOWN);
+	reboot_device(RECOVERY_MODE);
 
 	//shouldn't come here.
 	dprintf(CRITICAL, "ERROR: Failed to reboot device\n");
